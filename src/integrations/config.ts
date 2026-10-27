@@ -12,7 +12,6 @@ export function setStoredGoogleClientId(id: string) {
   const v = id.trim()
   if (!v) localStorage.removeItem(LS_GOOGLE_CLIENT)
   else localStorage.setItem(LS_GOOGLE_CLIENT, v)
-  // Notifie l’app qu’il faut re-évaluer isGoogleConfigured
   window.dispatchEvent(new Event('orion-google-config'))
 }
 
@@ -24,21 +23,9 @@ export function getGoogleClientId(): string {
   return getStoredGoogleClientId()
 }
 
-/** @deprecated use getGoogleClientId() — gardé pour imports existants */
-export const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() ?? ''
-
-export const oauthClients = {
-  get google() {
-    return getGoogleClientId()
-  },
-  slack: (import.meta.env.VITE_SLACK_CLIENT_ID as string | undefined)?.trim() ?? '',
-  notion: (import.meta.env.VITE_NOTION_CLIENT_ID as string | undefined)?.trim() ?? '',
-  hubspot: (import.meta.env.VITE_HUBSPOT_CLIENT_ID as string | undefined)?.trim() ?? '',
-  dropbox: (import.meta.env.VITE_DROPBOX_CLIENT_ID as string | undefined)?.trim() ?? '',
-  asana: (import.meta.env.VITE_ASANA_CLIENT_ID as string | undefined)?.trim() ?? '',
-  github: (import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined)?.trim() ?? '',
-  airtable: (import.meta.env.VITE_AIRTABLE_CLIENT_ID as string | undefined)?.trim() ?? '',
-}
+/** @deprecated use getGoogleClientId() */
+export const googleClientId =
+  (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() ?? ''
 
 export const GOOGLE_SCOPES = [
   'openid',
@@ -50,26 +37,75 @@ export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
 ].join(' ')
 
+export type AuthMode = 'google' | 'oauth' | 'imap'
+
 export const googleToolIds = new Set(['gmail', 'drive', 'calendar'])
+
+/** OAuth via Edge Functions (secrets côté serveur). */
+export const oauthToolIds = new Set([
+  'outlook',
+  'slack',
+  'notion',
+  'hubspot',
+  'dropbox',
+  'asana',
+  'github',
+  'airtable',
+  'linear',
+  'intercom',
+  'salesforce',
+  'zendesk',
+  'stripe',
+])
+
+/** IMAP + mot de passe d’application (yahoo / icloud / imap générique). */
+export const imapToolIds = new Set(['yahoo', 'icloud', 'imap'])
+
+/** @deprecated alias — mails hors Gmail qui utilisaient le formulaire local */
+export const altMailToolIds = imapToolIds
+
+/** IDs OAuth dynamiques (connecteurs ajoutés via lien). */
+let dynamicOauthIds = new Set<string>()
+
+export function setDynamicOauthIds(ids: string[]) {
+  dynamicOauthIds = new Set(ids)
+}
+
+export function authModeFor(toolId: string): AuthMode | null {
+  if (googleToolIds.has(toolId)) return 'google'
+  if (oauthToolIds.has(toolId) || dynamicOauthIds.has(toolId) || toolId.startsWith('custom_')) {
+    return 'oauth'
+  }
+  if (imapToolIds.has(toolId)) return 'imap'
+  return null
+}
 
 export function isGoogleConfigured() {
   return Boolean(getGoogleClientId())
 }
 
-/** Providers mail hors Gmail : connectables via formulaire (IMAP / Outlook). */
-export const altMailToolIds = new Set(['outlook', 'yahoo', 'icloud', 'imap'])
+/** Cache runtime des providers configurés côté Edge (rempli par connections-list). */
+let edgeConfigured: Record<string, boolean> | null = null
+
+export function setEdgeConfiguredMap(map: Record<string, boolean> | null) {
+  edgeConfigured = map
+}
+
+export function isEdgeProviderConfigured(toolId: string): boolean {
+  if (googleToolIds.has(toolId)) return isGoogleConfigured()
+  if (imapToolIds.has(toolId)) return true
+  if (toolId.startsWith('custom_') || dynamicOauthIds.has(toolId)) {
+    if (!edgeConfigured) return true
+    return edgeConfigured[toolId] !== false
+  }
+  if (!edgeConfigured) {
+    return oauthToolIds.has(toolId)
+  }
+  return Boolean(edgeConfigured[toolId])
+}
 
 export function providerConfigured(toolId: string) {
-  if (googleToolIds.has(toolId)) return isGoogleConfigured()
-  if (altMailToolIds.has(toolId)) return true
-  if (toolId === 'slack') return Boolean(oauthClients.slack)
-  if (toolId === 'notion') return Boolean(oauthClients.notion)
-  if (toolId === 'hubspot') return Boolean(oauthClients.hubspot)
-  if (toolId === 'dropbox') return Boolean(oauthClients.dropbox)
-  if (toolId === 'asana') return Boolean(oauthClients.asana)
-  if (toolId === 'github') return Boolean(oauthClients.github)
-  if (toolId === 'airtable') return Boolean(oauthClients.airtable)
-  return false
+  return isEdgeProviderConfigured(toolId)
 }
 
 export const GOOGLE_SETUP_LINKS = {

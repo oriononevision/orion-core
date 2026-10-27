@@ -7,18 +7,19 @@ Premier logiciel de l’écosystème ORION : hub qui connecte les outils du clie
 ```bash
 cd orion-core
 npm install
+cp .env.example .env   # renseigner Supabase + Google Client ID
 npm run dev
 ```
 
-Ouvre l’URL Vite (souvent `http://localhost:5173`).
+## Connexions
 
-## Contenu (démo front)
+| Mode | Apps |
+|---|---|
+| Google GIS (navigateur) | Gmail, Drive, Calendar |
+| OAuth Edge (Supabase) | Outlook, Slack, Notion, HubSpot, Dropbox, Asana, GitHub, Airtable, Linear, Intercom, Salesforce, Zendesk, Stripe |
+| IMAP Edge | Yahoo, iCloud, IMAP générique |
 
-- **Hub** — flux unifié, stats, projets, outils connectés
-- **Connexions** — catalogue (Gmail, Slack, Notion, Drive, HubSpot, Calendar, Linear, Intercom, Stripe, Salesforce…) + connexion simulée
-- **Agents IA** — Nexus, Mailer, CRM Pulse, Archiviste, Sentinel, Meeting Prep
-- **Clients / Projets / Documents** — fiches alimentées par les sources sync
-- **Activité** — journal multi-outils
-- **Recherche** — `Ctrl/Cmd + K` sur tout l’espace
+Guide secrets & callback : [`docs/oauth-providers.md`](docs/oauth-providers.md)  
+Déploiement bridge : [`scripts/deploy-connectors.md`](scripts/deploy-connectors.md)
 
-Les intégrations OAuth et l’exécution réelle des agents sont mockées côté front pour la démo produit.
+Sans secrets Edge, les boutons OAuth renvoient une erreur claire (plus de connexion démo).

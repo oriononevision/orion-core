@@ -67,7 +67,44 @@ export default function OnboardingPage() {
     window.location.assign('/')
   }
 
+  const goNext = () => {
+    if (step === 1 && !designMode) setDesignMode(suggested)
+    setStep((s) => s + 1)
+  }
+
   const progress = ((step + 1) / steps.length) * 100
+
+  const actions = (
+    <div className={`onboard__actions${step === 0 ? ' onboard__actions--inline' : ''}`}>
+      {step > 0 ? (
+        <button
+          type="button"
+          className="onboard__nav onboard__nav--ghost"
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+        >
+          <ArrowLeft size={16} /> Retour
+        </button>
+      ) : null}
+      {step < steps.length - 1 ? (
+        <button
+          type="button"
+          className="onboard__nav onboard__nav--primary"
+          disabled={!canNext}
+          onClick={goNext}
+        >
+          Continuer <ArrowRight size={16} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="onboard__nav onboard__nav--primary"
+          onClick={finish}
+        >
+          Lancer mon Hub <ArrowRight size={16} />
+        </button>
+      )}
+    </div>
+  )
 
   return (
     <div className="onboard">
@@ -113,80 +150,34 @@ export default function OnboardingPage() {
             transition={{ duration: 0.4, ease }}
           >
             {step === 0 ? (
-              <section className="onboard__welcome">
-                <div className="onboard__welcome-copy">
-                  <p className="onboard__kicker">
-                    <Sparkles size={14} /> Étape 1 — Bienvenue
-                  </p>
-                  <h1>
-                    Construisons
-                    <br />
-                    <em>votre Hub</em>
-                  </h1>
-                  <p className="onboard__lead">
-                    Un espace vide, puis un design calé sur vos outils et votre
-                    façon de travailler.
-                  </p>
-                  <ul className="onboard__pillars">
-                    <li>
-                      <Target size={16} />
-                      <span>Objectifs clairs</span>
-                    </li>
-                    <li>
-                      <Workflow size={16} />
-                      <span>Logiciels branchés</span>
-                    </li>
-                    <li>
-                      <Layers size={16} />
-                      <span>Modèle de Hub</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <motion.div
-                  className="onboard__stage"
-                  aria-hidden
-                  initial={{ opacity: 0, scale: 0.96, x: 24 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  transition={{ duration: 0.7, ease, delay: 0.1 }}
-                >
-                  <div className="onboard__stage-frame">
-                    <div className="onboard__stage-bar">
-                      <i />
-                      <i />
-                      <i />
-                      <span>ORION Hub</span>
-                    </div>
-                    <div className="onboard__stage-grid">
-                      <div className="onboard__tile onboard__tile--wide">
-                        <em>Priorités</em>
-                        <b />
-                        <b />
-                      </div>
-                      <div className="onboard__tile">
-                        <em>Agents</em>
-                        <span className="onboard__pulse" />
-                      </div>
-                      <div className="onboard__tile">
-                        <em>Outils</em>
-                        <div className="onboard__dots">
-                          <i />
-                          <i />
-                          <i />
-                        </div>
-                      </div>
-                      <div className="onboard__tile onboard__tile--wide">
-                        <em>Projets</em>
-                        <div className="onboard__bars">
-                          <i style={{ width: '72%' }} />
-                          <i style={{ width: '48%' }} />
-                          <i style={{ width: '61%' }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="onboard__orbit" />
-                </motion.div>
+              <section className="onboard__welcome onboard__welcome--center">
+                <p className="onboard__kicker">
+                  <Sparkles size={14} /> Étape 1 — Bienvenue
+                </p>
+                <h1>
+                  Construisons
+                  <br />
+                  <em>votre Hub</em>
+                </h1>
+                <p className="onboard__lead">
+                  Quelques questions pour démarrer avec un espace vide, puis un
+                  design adapté à vos outils et à votre façon de travailler.
+                </p>
+                <ul className="onboard__pillars onboard__pillars--row">
+                  <li>
+                    <Target size={16} />
+                    <span>Objectifs</span>
+                  </li>
+                  <li>
+                    <Workflow size={16} />
+                    <span>Logiciels</span>
+                  </li>
+                  <li>
+                    <Layers size={16} />
+                    <span>Design</span>
+                  </li>
+                </ul>
+                {actions}
               </section>
             ) : null}
 
@@ -373,37 +364,7 @@ export default function OnboardingPage() {
         </AnimatePresence>
       </main>
 
-      <footer className="onboard__foot">
-        <button
-          type="button"
-          className="onboard__nav onboard__nav--ghost"
-          disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-        >
-          <ArrowLeft size={16} /> Retour
-        </button>
-        {step < steps.length - 1 ? (
-          <button
-            type="button"
-            className="onboard__nav onboard__nav--primary"
-            disabled={!canNext}
-            onClick={() => {
-              if (step === 1 && !designMode) setDesignMode(suggested)
-              setStep((s) => s + 1)
-            }}
-          >
-            Continuer <ArrowRight size={16} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="onboard__nav onboard__nav--primary"
-            onClick={finish}
-          >
-            Lancer mon Hub <ArrowRight size={16} />
-          </button>
-        )}
-      </footer>
+      {step > 0 ? <footer className="onboard__foot">{actions}</footer> : null}
     </div>
   )
 }

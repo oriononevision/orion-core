@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Loader2, X } from 'lucide-react'
 import { useCore } from '../context/CoreContext'
 import ToolBadge from './ToolBadge'
-import { altMailToolIds, googleToolIds } from '../integrations/config'
+import { authModeFor, googleToolIds, imapToolIds } from '../integrations/config'
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
@@ -23,16 +23,20 @@ export default function ConnectModal() {
   } = useCore()
   const [busy, setBusy] = useState(false)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [imapHost, setImapHost] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
+  const mode = tool ? authModeFor(tool.id) : null
   const isGoogle = tool ? googleToolIds.has(tool.id) : false
-  const isAltMail = tool ? altMailToolIds.has(tool.id) : false
-  const needsEmail = isGoogle || isAltMail
+  const isImap = tool ? imapToolIds.has(tool.id) : false
+  const isOauth = mode === 'oauth'
+  const needsEmail = isGoogle || isImap
 
   useEffect(() => {
     setEmail('')
+    setPassword('')
     setImapHost('')
     setConfirmed(false)
     setLocalError(null)
@@ -54,17 +58,20 @@ export default function ConnectModal() {
       }
     }
 
+    if (isImap && !password.trim()) {
+      setLocalError('Mot de passe d’application requis.')
+      return
+    }
+
     setBusy(true)
     try {
-      await connectTool(
-        tool.id,
-        needsEmail
-          ? {
-              emailHint: email.trim(),
-              imapHost: tool.id === 'imap' ? imapHost.trim() || undefined : undefined,
-            }
-          : undefined,
-      )
+      await connectTool(tool.id, {
+        emailHint: needsEmail ? email.trim() : undefined,
+        password: isImap ? password.trim() : undefined,
+        imapHost: tool.id === 'imap' ? imapHost.trim() || undefined : undefined,
+        displayName: tool.name,
+        productUrl: tool.domain ? `https://${tool.domain}` : undefined,
+      })
     } finally {
       setBusy(false)
     }
@@ -113,7 +120,9 @@ export default function ConnectModal() {
             <div className="modal__head">
               <ToolBadge id={tool.id} size="lg" />
               <div>
-                <p className="eyebrow">Connexion rapide</p>
+                <p className="eyebrow">
+                  {isOauth ? 'OAuth sécurisé' : isImap ? 'IMAP' : 'Connexion rapide'}
+                </p>
                 <h2 id="connect-title">
                   {needsEmail ? `Lier ${tool.name}` : `Connecter ${tool.name}`}
                 </h2>
@@ -165,12 +174,12 @@ export default function ConnectModal() {
                       </p>
                     ) : null}
                   </div>
-                ) : isAltMail ? (
+                ) : isImap ? (
                   <div className="gmail-connect">
                     <p className="modal__lead">
-                      Connectez n’importe quelle boîte (Outlook, Yahoo, iCloud, OVH,
-                      entreprise…). Elle rejoint l’inbox unifiée et les agents
-                      (importants + relances).
+                      Yahoo, iCloud ou boîte IMAP : utilisez un{' '}
+                      <strong>mot de passe d’application</strong> (pas le mot de passe
+                      principal). ORION vérifie le LOGIN IMAP via le bridge.
                     </p>
 
                     <label className="gmail-connect__field">
@@ -179,13 +188,11 @@ export default function ConnectModal() {
                         type="email"
                         autoComplete="email"
                         placeholder={
-                          tool.id === 'outlook'
-                            ? 'prenom@outlook.com'
-                            : tool.id === 'yahoo'
-                              ? 'prenom@yahoo.com'
-                              : tool.id === 'icloud'
-                                ? 'prenom@icloud.com'
-                                : 'prenom@entreprise.com'
+                          tool.id === 'yahoo'
+                            ? 'prenom@yahoo.com'
+                            : tool.id === 'icloud'
+                              ? 'prenom@icloud.com'
+                              : 'prenom@entreprise.com'
                         }
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -193,9 +200,21 @@ export default function ConnectModal() {
                       />
                     </label>
 
+                    <label className="gmail-connect__field">
+                      Mot de passe d’application
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder="••••••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={busy}
+                      />
+                    </label>
+
                     {tool.id === 'imap' ? (
                       <label className="gmail-connect__field">
-                        Serveur IMAP (optionnel)
+                        Serveur IMAP
                         <input
                           type="text"
                           placeholder="imap.votre-domaine.com"
@@ -216,24 +235,25 @@ export default function ConnectModal() {
                       />
                       <span>
                         Je confirme lier <strong>{email.trim() || 'cette adresse'}</strong>{' '}
-                        à ORION Core pour lecture / relances IA.
+                        à ORION Core.
                       </span>
                     </label>
-
-                    <p className="modal__note">
-                      Gmail sync en live dès maintenant. Les autres boîtes sont
-                      enregistrées pour l’inbox unifiée ; la sync IMAP complète
-                      passe par le bridge Orion.
-                    </p>
                   </div>
                 ) : (
                   <div className="gmail-connect">
                     <p className="modal__lead">{tool.description}</p>
-                    <p className="modal__note">
-                      Même parcours que Gmail : autorisation, synchronisation, puis
-                      exposition aux agents. Sans clé OAuth dans .env, la connexion
-                      est en mode démo ORION Core.
-                    </p>
+                    {liveReady ? (
+                      <p className="modal__note">
+                        Autorisation OAuth via le bridge ORION. Après validation chez{' '}
+                        {tool.name}, vous revenez ici avec le compte connecté.
+                      </p>
+                    ) : (
+                      <p className="modal__note">
+                        {tool.name} n’est pas encore branché nativement (OAuth serveur).
+                        Ajoutez-le à votre espace — l’équipe Orion finalise l’activation.
+                        Aucune clé technique à coller de votre côté.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -251,14 +271,20 @@ export default function ConnectModal() {
                   <button
                     type="button"
                     className="btn btn--white"
-                    disabled={!liveReady || busy}
+                    disabled={(isGoogle && !liveReady) || busy}
                     onClick={() => void onConfirmConnect()}
                   >
                     {busy
-                      ? 'Connexion…'
+                      ? isOauth && liveReady
+                        ? 'Redirection…'
+                        : isOauth && !liveReady
+                          ? 'Ajout…'
+                          : 'Connexion…'
                       : needsEmail
                         ? 'Confirmer et connecter'
-                        : `Autoriser ${tool.name}`}
+                        : isOauth && !liveReady
+                          ? 'Ajouter à mon espace'
+                          : `Autoriser ${tool.name}`}
                   </button>
                 </div>
               </>
@@ -269,7 +295,9 @@ export default function ConnectModal() {
                     <StepIcon phase={connectPhase} step="authorizing" />
                     {isGoogle
                       ? `Confirmation Google${email ? ` · ${email}` : ''}`
-                      : `Lien compte${email ? ` · ${email}` : ''}`}
+                      : isOauth
+                        ? `Autorisation ${tool.name}`
+                        : `Lien compte${email ? ` · ${email}` : ''}`}
                   </li>
                   <li className={stepClass(connectPhase, 'granted')}>
                     <StepIcon phase={connectPhase} step="granted" />
@@ -277,7 +305,7 @@ export default function ConnectModal() {
                   </li>
                   <li className={stepClass(connectPhase, 'syncing')}>
                     <StepIcon phase={connectPhase} step="syncing" />
-                    {isAltMail ? 'Enregistrement inbox unifiée' : 'Synchronisation'}
+                    {isImap ? 'Vérification IMAP' : 'Synchronisation'}
                   </li>
                   <li className={stepClass(connectPhase, 'done')}>
                     <StepIcon phase={connectPhase} step="done" />

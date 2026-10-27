@@ -1,4 +1,5 @@
 import { getTool } from '../data/tools'
+import { getCustomTool } from '../integrations/customConnectors'
 
 export default function ToolBadge({
   id,
@@ -7,7 +8,7 @@ export default function ToolBadge({
   id: string
   size?: 'sm' | 'md' | 'lg'
 }) {
-  const tool = getTool(id)
+  const tool = getTool(id) ?? getCustomTool(id)
   if (!tool) return null
 
   const lightLogo =
