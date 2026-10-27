@@ -31,3 +31,7 @@ dist-ssr
 
 .tools/
 
+
+# Supabase CLI local
+supabase/.temp/
+
